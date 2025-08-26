@@ -46,6 +46,7 @@ a {
   height: 800px;
   overflow-y: scroll;
   position: relative;
+  /* justify-content: center;v */
 }
 
 .viewPort > div {
@@ -60,7 +61,7 @@ a {
 
 .demo {
   padding: 20px;
-  margin: 0 10px;
+  margin: auto;
   border-radius: 10px;
   width: 400px;
 }
