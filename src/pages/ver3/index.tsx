@@ -2,19 +2,19 @@ import { text } from "@/text";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 
-// Komponent StickySweet w React
+// Uproszczony komponent StickySweet
 function StickySweet({
-  containerClass,
   children,
-  debugOffset,
   dir,
   lst,
+  containerRef,
+  backgroundColor,
 }: {
-  containerClass: string;
   children: React.ReactNode;
-  debugOffset: string;
   dir: "up" | "down";
   lst: number;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  backgroundColor: string;
 }) {
   const fillRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
@@ -22,16 +22,12 @@ function StickySweet({
   const atBottomRef = useRef<HTMLDivElement>(null);
 
   const [atTop, setAtTop] = useState(false);
-  const [atBottom, setAtBottom] = useState<boolean | null>(null);
-
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const containerRef = useRef<Element | null>(null);
+  const [atBottom, setAtBottom] = useState(false);
 
   const calc = (direction: string) => {
     const fill = fillRef.current;
     const sticky = stickyRef.current;
     const container = containerRef.current;
-
     if (!fill || !sticky || !container) return;
 
     const rSticky = sticky.getBoundingClientRect();
@@ -44,7 +40,6 @@ function StickySweet({
     }
 
     if (direction === "up") {
-      sticky.style.top = "";
       sticky.style.bottom = `${h}px`;
       if (atBottom) {
         fill.style.height = `${Math.max(
@@ -53,7 +48,6 @@ function StickySweet({
         )}px`;
       }
     } else {
-      sticky.style.bottom = "";
       sticky.style.top = `${h}px`;
       if (atTop) {
         fill.style.height = `${lst}px`;
@@ -61,20 +55,19 @@ function StickySweet({
     }
   };
 
+  // dodaje style do wypełniacza fill i zmienia style kontenenra sticky
   useEffect(() => {
-    if (dir) {
-      calc(dir);
-    }
+    calc(dir);
   }, [dir, atTop, atBottom, lst]);
 
+  // określa czy komponent jest na górze lub dole
   useEffect(() => {
-    // Tworzenie IntersectionObserver
-    observerRef.current = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.target.classList.contains("atTop")) {
+          if (e.target === atTopRef.current) {
             setAtTop(e.intersectionRatio >= 1);
-          } else if (e.target.classList.contains("atBottom")) {
+          } else if (e.target === atBottomRef.current) {
             setAtBottom(e.intersectionRatio >= 1);
           }
         });
@@ -82,82 +75,67 @@ function StickySweet({
       { threshold: [1] }
     );
 
-    // Znajdowanie kontenera
-    if (stickyRef.current) {
-      containerRef.current = stickyRef.current.closest(`.${containerClass}`);
-      // if (containerRef.current) {
-      //   containerRef.current.addEventListener("scroll", onScroll);
-      // }
-    }
+    if (atTopRef.current) observer.observe(atTopRef.current);
+    if (atBottomRef.current) observer.observe(atBottomRef.current);
 
-    // Obserwowanie elementów
-    if (atTopRef.current) {
-      observerRef.current.observe(atTopRef.current);
-    }
-    if (atBottomRef.current) {
-      observerRef.current.observe(atBottomRef.current);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-      // if (containerRef.current) {
-      //   containerRef.current.removeEventListener("scroll", onScroll);
-      // }
-    };
-  }, [containerClass]);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <>
+    <div style={{ position: "relative", flex: 1 }}>
+      <div ref={fillRef} />
       <div
         style={{
-          position: "fixed",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          left: debugOffset,
-          zIndex: 1,
-          backgroundColor: "black",
-          color: "white",
-          width: "200px",
-          padding: 10,
+          position: "sticky",
         }}
+        ref={stickyRef}
       >
-        <div>
-          atTopRef: {atTopRef.current?.getBoundingClientRect().top || 0}px
-        </div>
-        <div>
-          atBottomRef: {atBottomRef.current?.getBoundingClientRect().top || 0}px
-        </div>
-        <div>dir: {dir}</div>
-        <div>lst: {lst}</div>
-      </div>
-      <div className="stickySweet">
-        <div className="fill" ref={fillRef} />
-        <div className="sticky" ref={stickyRef}>
-          <div className="atTop" ref={atTopRef} />
-          <div className="atBottom" ref={atBottomRef} />
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+          }}
+          ref={atTopRef}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+          }}
+          ref={atBottomRef}
+        />
+        <div
+          style={{
+            padding: 20,
+            margin: "auto",
+            borderRadius: 10,
+            width: 400,
+            backgroundColor,
+          }}
+        >
           {children}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 function Ver3Content() {
   const [scrollDirection, setScrollDirection] = useState<"up" | "down">("down");
   const [lastScrollY, setLastScrollY] = useState(0);
+  const viewPortRef = useRef<HTMLDivElement>(null);
 
+  // określa kierunek scrollowania
   useEffect(() => {
-    const handleScroll = () => {
-      const viewPort = document.querySelector(".viewPort") as HTMLElement;
-      if (!viewPort) return;
+    const viewPort = viewPortRef.current;
+    if (!viewPort) return;
 
+    const handleScroll = () => {
       const currentScrollTop = viewPort.scrollTop;
       const direction = currentScrollTop > lastScrollY ? "down" : "up";
 
-      // Sprawdź czy zmienił się kierunek scrollowania
       if (direction !== scrollDirection) {
         setScrollDirection(direction);
       }
@@ -165,39 +143,43 @@ function Ver3Content() {
       setLastScrollY(currentScrollTop);
     };
 
-    const viewPort = document.querySelector(".viewPort") as HTMLElement;
-    if (viewPort) {
-      viewPort.addEventListener("scroll", handleScroll);
-      return () => viewPort.removeEventListener("scroll", handleScroll);
-    }
+    viewPort.addEventListener("scroll", handleScroll);
+    return () => viewPort.removeEventListener("scroll", handleScroll);
   }, [lastScrollY, scrollDirection]);
 
   return (
-    <div className="viewPort">
-      <div>
+    <div
+      style={{
+        height: "100vh",
+        overflowY: "scroll",
+        position: "relative",
+      }}
+      ref={viewPortRef}
+    >
+      <div
+        style={{
+          display: "flex",
+        }}
+      >
         <StickySweet
-          containerClass="viewPort"
-          debugOffset={"0px"}
           dir={scrollDirection}
           lst={lastScrollY}
+          containerRef={viewPortRef}
+          backgroundColor="#2472ab"
         >
-          <div className="demo one">
-            {text}
-            {text}
-          </div>
+          {text}
+          {text}
         </StickySweet>
 
         <StickySweet
-          containerClass="viewPort"
-          debugOffset={"50%"}
           dir={scrollDirection}
           lst={lastScrollY}
+          containerRef={viewPortRef}
+          backgroundColor="#30a520"
         >
-          <div className="demo five">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <p key={i}>{text}</p>
-            ))}
-          </div>
+          {Array.from({ length: 9 }).map((_, i) => (
+            <p key={i}>{text}</p>
+          ))}
         </StickySweet>
       </div>
     </div>
